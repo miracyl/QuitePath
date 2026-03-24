@@ -1,0 +1,21 @@
+stages:
+    - deploy
+
+variables:
+    PGSSLMODE: "require"
+
+deploy:
+    stage: deploy
+    image: postgres:16
+    script:
+        - apt-get update && apt-get install -y make gettext-base
+        - psql --version
+        - echo "Checking environment variables..."
+        - echo "DB_HOST=${DB_HOST}"
+        - echo "DB_PORT=${DB_PORT}"
+        - echo "DB_NAME=${DB_NAME}"
+        - echo "DB_USER=${DB_USER}"
+        - echo "DB_PASSWORD is set:" && [ -n "$DB_PASSWORD" ] && echo "yes" || echo "no"
+        - make deploy
+    only:
+        - main
