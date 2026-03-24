@@ -101,7 +101,6 @@ class JiragramDatabase:
         """Сохраняет OAuth токены для пользователя по его Telegram ID."""
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
         async with self.pool.acquire() as conn:
-            # Находим user_id
             user_id = await conn.fetchval(
                 "SELECT u.id FROM users u JOIN user_platforms p ON u.id = p.user_id WHERE p.platform='telegram' AND p.external_id=$1",
                 str(telegram_id),
@@ -130,4 +129,15 @@ class JiragramDatabase:
             )
         return None, None, None
 
-    # Если старые методы create_account_request и approve_user не используются – удалите их.
+    async def logout_user(self, user_tg_id: int) -> bool:
+        """
+        Удаляет привязку Telegram к Jira.
+        Возвращает True, если пользователь был найден и удален, иначе False.
+        """
+        query = """
+            DELETE FROM user_platforms 
+            WHERE external_id = $1 AND platform = 'telegram'
+            RETURNING id;
+        """
+        result = await self.pool.fetchval(query, str(user_tg_id))
+        return result is not None
