@@ -1,15 +1,15 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: postgres_jiragram_db
+    container_name: postgres_quite_path
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-jiragram_db}
+      POSTGRES_DB: ${DB_NAME:-quite_path}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${DB_PORT:-8181}:5432"  # ИСПРАВЛЕНО: 8181 снаружи -> 5432 внутри
+      - "${DB_PORT:-0001}:0002"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/migrations:ro
@@ -23,7 +23,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: pgadminJiragram
+    container_name: pgadminQuitePath
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
@@ -31,7 +31,7 @@ services:
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
-      - "${PGADMIN_PORT:-5151}:80" # В pgAdmin внутренний порт обычно 80, а не 5151
+      - "${PGADMIN_PORT:-0003}:0004" 
     volumes:
       - pgadmin_data:/var/lib/pgadmin
       - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
@@ -47,4 +47,4 @@ volumes:
 
 networks:
   postgres_network:
-    name: postgres_network # Если сеть не создана заранее, лучше сделать так
+    name: postgres_network
