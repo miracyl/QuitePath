@@ -1,0 +1,42 @@
+# Переменные окружения
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Логи
+*.log
+logs/
+
+# Бэкапы
+backups/
+*.backup
+*.sql.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Временные файлы
+*.tmp
+*.swp
+*~
+
+# Docker volumes (если используется bind mount)
+docker/postgres_data/
+docker/pgadmin_data/
+
+# Генерируемая документация
+docs
+schema
+
+.venv
+.pytest_cache
+__pycache__
+.github
+# Виртуальное окружение
+venv/
+.env.local
+
+# Остальное уже есть

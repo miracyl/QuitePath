@@ -1,93 +1,329 @@
-# event-db
+# PostgreSQL Database Project
 
+Профессиональная структура для управления PostgreSQL базой данных с миграциями, функциями и тестовыми данными.
 
+📚 **[Database API Documentation →](wiki/ru/README.md)** | **[EN Version →](wiki/en/README.md)**
 
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 📁 Структура проекта
 
 ```
-cd existing_repo
-git remote add origin https://git.waveteam.net/skylove/databases/event-db.git
-git branch -M main
-git push -uf origin main
+auth-db/
+├── migrations/           # Миграции БД (версионированные, неизменяемые)
+│   ├── up/              # Миграции применения
+│   │   └── 001_add_auth.sql
+│   ├── down/            # Миграции отката
+│   │   └── 001_add_auth.sql
+│   └── seed/            # Тестовые данные (только для dev)
+│       └── 001_example_users.sql
+│
+├── schema/              # Snapshot текущей структуры БД (документация)
+│   ├── tables/          # Определения таблиц (user_ids, users, verification_codes, user_permissions)
+│   ├── indexes/         # Индексы (partial unique для is_active=TRUE)
+│   ├── views/           # SQL представления (active_users, active_codes, active_permissions)
+│   ├── functions/       # SQL функции (7 read-only функций)
+│   └── procedures/      # SQL процедуры (7 процедур изменения данных)
+│
+├── scripts/             # Утилиты
+│   ├── migrate.sh       # Управление миграциями
+│   ├── export_schema.sh # Экспорт схемы в файлы
+│   └── generate_schema.py  # Генерация schema из миграций
+│
+├── wiki/                # Документация
+│   ├── ru/              # Русская документация
+│   └── en/              # Английская документация
+│
+├── docker/              # Docker конфигурация
+│   └── pgadmin/         # Настройки pgAdmin
+│
+├── db.py               # Python API для работы с БД (asyncpg)
+├── docker-compose.yml   # PostgreSQL + pgAdmin
+├── Makefile            # Команды для управления
+└── README.md           # Этот файл
 ```
 
-## Integrate with your tools
+## 🎯 Ключевые принципы
 
-* [Set up project integrations](https://git.waveteam.net/skylove/databases/event-db/-/settings/integrations)
+### 1. migrations/ - Source of Truth
 
-## Collaborate with your team
+- ✅ Версионированные файлы (`001_название.sql`)
+- ❌ **НЕЛЬЗЯ** изменять после применения
+- ✅ Применяются последовательно
+- ✅ Отслеживаются в `schema_migrations` таблице
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 2. schema/ - Документация
 
-## Test and Deploy
+- ✅ Snapshot текущей структуры БД
+- ✅ Разделено по типам (tables, views, indexes, triggers)
+- ✅ Можно просмотреть БЕЗ применения к БД
+- ✅ Обновляется через `make schema-generate`
 
-Use the built-in continuous integration in GitLab.
+### 3. functions/ & procedures/ - Переприменяемые
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+- ✅ Используют `CREATE OR REPLACE`
+- ✅ Можно изменять напрямую
+- ✅ Применяются при каждом `make local`
+- ✅ Версионируются через Git
 
-***
+## 🚀 Быстрый старт
 
-# Editing this README
+### Локальная разработка
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+# Развернуть БД с тестовыми данными
+make local
 
-## Suggestions for a good README
+# Подключиться к БД
+make psql
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+# Остановить
+make down
 
-## Name
-Choose a self-explaining name for your project.
+# Полная очистка
+make clean
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Продакшен (CI/CD)
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+# Применить миграции БЕЗ seed данных
+make migrate
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## 📝 Работа с миграциями
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Создание новой миграции
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+# Создать новую миграцию
+make create name=add_posts_table
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+# Результат:
+# migrations/up/007_add_posts_table.sql
+# migrations/down/007_add_posts_table.sql
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### После создания миграции
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+# 1. Написать SQL в migrations/up/007_add_posts_table.sql
+# 2. Применить локально
+make clean && make local
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+# 3. Обновить schema/ для документации
+make schema-generate
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+# 4. Закоммитить
+git add migrations/up/007_add_posts_table.sql
+git add migrations/down/007_add_posts_table.sql
+git add schema/
+git commit -m "feat: add posts table"
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## 🔍 Инспекция БД
 
-## License
-For open source projects, say how it is licensed.
+### Просмотр БЕЗ применения
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```bash
+# Посмотреть что будет в БД из миграций (БЕЗ применения!)
+make preview
+
+# Результат: docs/schema_from_migrations.sql
+cat docs/schema_from_migrations.sql | less
+```
+
+### Просмотр структуры таблицы
+
+```bash
+# Из snapshot (БЕЗ БД)
+cat schema/tables/users.sql
+
+# Из живой БД
+make table name=users
+```
+
+### Список всех таблиц
+
+```bash
+make describe
+```
+
+### Экспорт текущей схемы
+
+```bash
+# pg_dump текущей БД
+make schema
+
+# Результат: docs/schema.sql
+```
+
+## 📊 Разница: migrations/ vs schema/
+
+| Аспект           | migrations/                           | schema/                               |
+| ---------------- | ------------------------------------- | ------------------------------------- |
+| **Назначение**   | Применение изменений к БД             | Документация текущей структуры        |
+| **Изменяемость** | ❌ Нельзя менять после применения     | ✅ Обновляется командой               |
+| **Формат**       | `001_название.sql` (версии)           | `table_name.sql` (по объектам)        |
+| **Применение**   | Через `make local` или `make migrate` | Не применяется (только для просмотра) |
+| **Tracking**     | `schema_migrations` таблица           | Не отслеживается                      |
+
+## 🛠 Команды
+
+### Docker
+
+```bash
+make local    # Развернуть локальную БД с seed данными
+make down     # Остановить
+make clean    # Полностью удалить
+```
+
+### Продакшен
+
+```bash
+make migrate  # Применить миграции (без seed)
+```
+
+### Миграции
+
+```bash
+make create name=название  # Создать новую миграцию
+make migrate-up           # Применить следующую миграцию
+make migrate-down         # Откатить последнюю миграцию
+make migrate-status       # Показать статус миграций
+make migrate-reset        # Откатить все и применить заново
+```
+
+### Инспекция
+
+```bash
+make preview          # Предпросмотр из миграций (БЕЗ БД!)
+make schema-generate  # Обновить schema/ из текущей БД
+make schema           # pg_dump текущей БД
+make describe         # Список таблиц
+make table name=users # Структура таблицы
+make doc              # Полная документация
+```
+
+### Утилиты
+
+```bash
+make psql  # Подключиться к БД
+make logs  # Показать логи
+make help  # Справка
+```
+
+## 🌐 Доступ
+
+### PostgreSQL
+
+```
+Host: localhost
+Port: 5432
+Database: app_db (из .env)
+User: postgres (из .env)
+Password: postgres (из .env)
+```
+
+### pgAdmin (Web UI)
+
+```
+URL: http://localhost:5050
+Email: admin@admin.com
+Password: admin
+```
+
+## 📚 Документация
+
+- [MIGRATIONS.md](MIGRATIONS.md) - Управление миграциями (откат/накат)
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Детальная архитектура
+- [FAQ.md](FAQ.md) - Частые вопросы
+- [schema/README.md](schema/README.md) - О структуре schema/
+- [QUICKSTART.md](QUICKSTART.md) - Быстрое введение
+
+## ✏️ Типичные сценарии
+
+### Добавить новую таблицу
+
+```bash
+# 1. Создать миграцию
+make create name=add_orders
+
+# 2. Написать SQL в migrations/up/00X_add_orders.sql
+# 3. Применить
+make clean && make local
+
+# 4. Обновить документацию
+make schema-generate
+
+# 5. Закоммитить
+git add migrations/ schema/
+git commit -m "feat: add orders table"
+```
+
+### Изменить существующую функцию
+
+```bash
+# 1. Изменить напрямую
+vi functions/users.sql
+
+# 2. Обновить версию в комментариях
+# v1.0.1: Fixed validation
+
+# 3. Применить (функции переприменяются автоматически)
+make local
+
+# 4. Закоммитить
+git add functions/users.sql
+git commit -m "fix: user validation in create_user"
+```
+
+### Добавить view
+
+```bash
+# Можно в миграцию или в schema/ напрямую
+# Рекомендуется: в миграцию если это часть feature
+
+# 1. Создать миграцию
+make create name=add_user_stats_view
+
+# 2. Написать CREATE VIEW в migrations/up/00X_add_user_stats_view.sql
+# 3. Применить
+make clean && make local
+
+# 4. Обновить schema/
+make schema-generate
+```
+
+## 🤝 Workflow для команды
+
+### Developer
+
+1. Создаёт миграцию: `make create name=feature`
+2. Пишет SQL
+3. Тестирует: `make clean && make local`
+4. Обновляет schema/: `make schema-generate`
+5. Коммитит migration + schema/
+
+### CI/CD
+
+1. Запускает тесты на чистой БД
+2. Применяет миграции: `make migrate`
+3. Проверяет успешность
+
+### Code Review
+
+1. Смотрит изменения в migrations/
+2. Проверяет down миграцию
+3. Смотрит изменения в schema/ для контекста
+
+## 📈 Преимущества этой архитектуры
+
+✅ **migrations/** - чёткая история изменений  
+✅ **schema/** - быстрый просмотр текущей структуры  
+✅ **Разделение по типам** - легко найти нужное  
+✅ **make preview** - видно результат БЕЗ применения  
+✅ **functions/procedures/** - легко изменять  
+✅ **Простой Makefile** - 2 основные команды
+
+## 📄 Лицензия
+
+MIT
