@@ -1,50 +1,41 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres_quite_path
-    restart: unless-stopped
+  db:
+    build: 
+      context: ..
+      dockerfile: docker/database/Dockerfile
+    container_name: quitepath-db
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-quite_path}
-      PGDATA: /var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=${POSTGRES_NAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "${DB_PORT:-0001}:0002"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/migrations:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-jiragram_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - postgres_network
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadminQuitePath
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "${PGADMIN_PORT:-0003}:0004" 
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - "${INTERNAL_PORT}:${EXTERNAL_PORT}"
+  server:
+    build: 
+      context: ..
+      dockerfile: docker/server/Dockerfile
+    container_name: quitepath-server
     depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - postgres_network
+      - db
+  import-osm:
+      image: pgrouting/pgrouting:16-3.5-3.8
+      container_name: quitepath-import
+      volumes: 
+        - ../moscow_rich_data.osm:/data.osm
+      environment:
+        - PGPASSWORD=${POSTGRES_PASSWORD} 
+      entrypoint: /bin/bash -c "apt-get update && apt-get install -y osm2pgrouting && PGPASSWORD=${POSTGRES_PASSWORD}  osm2pgrouting -f /data.osm --conf /usr/share/osm2pgrouting/mapconfig.xml --dbname ${POSTGRES_DB} --host ${POSTGRES_HOST}  --user ${POSTGRES_NAME} --password ${POSTGRES_PASSWORD} --clean"
+        echo 'Импорт завершен, начинаю расчет весов...' && 
+          psql -h {POSTGRES_HOST} -U ${POSTGRES_NAME} -d {POSTGRES_DB} -c \"
+            ALTER TABLE ways ADD COLUMN IF NOT EXISTS noise_factor FLOAT DEFAULT 1.0;
+            ALTER TABLE ways ADD COLUMN IF NOT EXISTS green_factor FLOAT DEFAULT 1.0;
+            ALTER TABLE ways ADD COLUMN IF NOT EXISTS quiet_cost FLOAT;
+            UPDATE ways SET green_factor = 0.5 WHERE tag_value IN ('footway', 'path', 'pedestrian') AND (tag_key = 'leisure' OR tag_value = 'park');
+            UPDATE ways SET quiet_cost = length_m * noise_factor * green_factor;
+          \" "
+      depends_on:
+        - db
 
-volumes:
-  postgres_data:
-  pgadmin_data:
 
-networks:
-  postgres_network:
-    name: postgres_network
+  
+
