@@ -1,10 +1,15 @@
 {
 	"cSpell.words": [
 		"aiogram",
+		"dbname",
+		"initdb",
 		"Jiragram",
 		"PGADMIN",
+		"pgrouting",
 		"plpgsql",
+		"postgis",
 		"psql",
+		"quitepath",
 		"tablename",
 		"VARCHAR"
 	]
