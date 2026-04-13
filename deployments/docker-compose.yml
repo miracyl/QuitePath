@@ -5,11 +5,12 @@ services:
       dockerfile: docker/database/Dockerfile
     container_name: quitepath-db
     environment:
-      - POSTGRES_USER=${POSTGRES_NAME}
+      - POSTGRES_USER=POSTGRES
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "${INTERNAL_PORT}:${EXTERNAL_PORT}"
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT}"
+
   server:
     build: 
       context: ..
@@ -17,25 +18,22 @@ services:
     container_name: quitepath-server
     depends_on:
       - db
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=POSTGRES
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+
   import-osm:
-      image: pgrouting/pgrouting:16-3.5-3.8
-      container_name: quitepath-import
-      volumes: 
-        - ../moscow_rich_data.osm:/data.osm
-      environment:
-        - PGPASSWORD=${POSTGRES_PASSWORD} 
-      entrypoint: /bin/bash -c "apt-get update && apt-get install -y osm2pgrouting && PGPASSWORD=${POSTGRES_PASSWORD}  osm2pgrouting -f /data.osm --conf /usr/share/osm2pgrouting/mapconfig.xml --dbname ${POSTGRES_DB} --host ${POSTGRES_HOST}  --user ${POSTGRES_NAME} --password ${POSTGRES_PASSWORD} --clean"
-        echo 'Импорт завершен, начинаю расчет весов...' && 
-          psql -h {POSTGRES_HOST} -U ${POSTGRES_NAME} -d {POSTGRES_DB} -c \"
-            ALTER TABLE ways ADD COLUMN IF NOT EXISTS noise_factor FLOAT DEFAULT 1.0;
-            ALTER TABLE ways ADD COLUMN IF NOT EXISTS green_factor FLOAT DEFAULT 1.0;
-            ALTER TABLE ways ADD COLUMN IF NOT EXISTS quiet_cost FLOAT;
-            UPDATE ways SET green_factor = 0.5 WHERE tag_value IN ('footway', 'path', 'pedestrian') AND (tag_key = 'leisure' OR tag_value = 'park');
-            UPDATE ways SET quiet_cost = length_m * noise_factor * green_factor;
-          \" "
-      depends_on:
-        - db
-
-
-  
-
+    image: pgrouting/pgrouting:16-3.5-3.8
+    container_name: quitepath-import
+    volumes: 
+      - ../moscow_rich_data.osm:/data.osm
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    entrypoint: /bin/bash -c "apt-get update && apt-get install -y osm2pgrouting postgresql-client && PGPASSWORD=${POSTGRES_PASSWORD} osm2pgrouting -f /data.osm --conf /usr/share/osm2pgrouting/mapconfig.xml --dbname ${POSTGRES_DB} --host db --username POSTGRES --password ${POSTGRES_PASSWORD} --clean --attributes && psql -h db -U POSTGRES -d ${POSTGRES_DB} -c 'ALTER TABLE ways ADD COLUMN IF NOT EXISTS noise_factor FLOAT DEFAULT 1.0; ALTER TABLE ways ADD COLUMN IF NOT EXISTS green_factor FLOAT DEFAULT 1.0; ALTER TABLE ways ADD COLUMN IF NOT EXISTS quiet_cost FLOAT; UPDATE ways SET quiet_cost = length_m;'"
+    depends_on:
+      - db
